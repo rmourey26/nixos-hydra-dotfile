@@ -5,6 +5,17 @@
 { config, pkgs, ... }:
 
 {
+
+  nix.package = pkgs.nixFlakes;
+  nix.useSandbox = true;
+  nix.autoOptimiseStore = true;
+  nix.readOnlyStore = false;
+  nix.extraOptions = ''
+    experimental-features = nix-command flakes
+    keep-outputs = true
+    keep-derivations = true
+  '';
+
   imports =
     [ # Include the results of the hardware scan.
       ./hardware-configuration.nix
@@ -69,6 +80,8 @@
   services.printing.enable = true;
   programs.sway.enable = true;
   xdg.portal.wlr.enable = true;
+  # Sandboxes
+  xdg.portal.extraPortals = [ pkgs.xdg-desktop-portal-gtk ];
   # Enable sound.
   sound.enable = true;
   hardware.pulseaudio.enable = true;
@@ -80,8 +93,23 @@
   users.users.rmourey26 = {
     isNormalUser = true;
     extraGroups = [ "wheel" "networkmanager" "docker" "deployer" ]; # Enable ‘sudo’ for the user.
+    openssh.authorizedKeys.keys = [ "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFtzlvFCMI+H8Cwa5yHo7X4tazSefdQ9vKyRMQFe9Z5V rmourey_jr@quantumone.network" ];
+    packages = with pkgs; [
+      python39Full
+    ]; 
   };
   
+ # home-manager.users.rmourey26 = { ... }: {
+ #   imports = [ ../lib/rmourey26/base.nix ];   
+ #   home.packages = [ pkgs.atool pkgs.httpie ];
+ #     programs.bash.enable = true;
+ #     programs.git = {
+ #       package = pkgs.gitAndTools.gitFull;
+ #       enable = true;
+ #       userName = "rmourey26";
+ #       userEmail = "rmourey_jr@quantumone.network";
+ #     };
+ # };
   # Entrusting the Nixops deployer
 
   nix.trustedUsers = [ "deployer" "rmourey26" "hydra" "hydra-evaluator" "hydra-queue-runner"  ];
@@ -95,8 +123,24 @@
   environment.systemPackages = with pkgs; [
     vim # Do not forget to add an editor to edit configuration.nix! The Nano editor is also installed by default.
     wget
+    git
+    gh
+    inotify-tools
+    nodejs
     firefox
     perl
+    gitAndTools.gitFull
+    google-cloud-sdk-gce
+    kubernetes
+    kubernetes-helm
+    kubeseal
+    binutils
+    gnutls
+    bind
+    neovim
+    mkpasswd
+    cachix
+    shutter
     docker
     awscli
     python3
@@ -105,6 +149,7 @@
   # Some programs need SUID wrappers, can be configured further or are
   # started in user sessions.
   programs.mtr.enable = true;
+  programs.seahorse.enable = true;
   programs.gnupg.agent = {
     enable = true;
     enableSSHSupport = true;
@@ -113,15 +158,22 @@
   # List services that you want to enable:
 
   # Enable the OpenSSH daemon.
-  services.openssh.enable = true;
+  services.openssh = {
+    enable = true;
+      permitRootLogin = "no";
+      passwordAuthentication = false;
+      forwardX11 = true;
+      ports = [ 2022 ];
+  };
   virtualisation.docker.enable = true;
+  services.flatpak.enable = true;
   services.hydra = {
     enable = true;
     hydraURL = "https://hydra.quantumone.network";
     notificationSender = "hydra@hydra.quantumone.network";
     buildMachinesFiles = [];
     useSubstitutes = true;
-    logo = /var/lib/hydra/www/bcc-logo.png;
+    logo = "/var/lib/hydra/www/qone-color.png";
   };
   services.yggdrasil = {
     enable = true;
@@ -145,8 +197,8 @@
   security.acme.acceptTerms = true;
   security.acme.email = "rmourey_jr@da-fi.com";
   # Open ports in the firewall.
-  networking.firewall.allowedTCPPorts = [ 20 22 80 443 53 111 113 2049 1080 3000 5432 ];
-  networking.firewall.allowedUDPPorts = [ 20 22 80 443 53 111 113 2049 1080 3000 5432 ];
+  networking.firewall.allowedTCPPorts = [ 20 22 80 443 53 111 113 2049 1080 3000 5432 8125 9198 9199 63333 ];
+  networking.firewall.allowedUDPPorts = [ 20 22 80 443 53 111 113 2049 1080 3000 5432 8125 9198 9199 63333 ];
   networking.firewall.allowedTCPPortRanges = [
   { from = 512; to = 515; }
   { from = 4000; to = 4007; }
@@ -167,7 +219,7 @@
   ];
   # Or disable the firewall altogether.
   # networking.firewall.enable = false;
-  networking.defaultGateway = "10.0.0.1";
+  networking.defaultGateway = "10.0.0.120";
   networking.nameservers = [ "1.1.1.1" ];
   # This value determines the NixOS release from which the default
   # settings for stateful data, like file locations and database versions
